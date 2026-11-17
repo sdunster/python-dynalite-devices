@@ -1,6 +1,7 @@
 """Tests for DynaliteDevices."""
 
 import asyncio
+import errno
 from unittest.mock import patch
 
 import pytest
@@ -398,3 +399,18 @@ async def _break_connection_and_reconnect(mock_gateway, error):
 async def test_dynalite_disconnect_closes_socket(mock_gateway):
     """Test that the old socket is closed before reconnecting."""
     await _break_connection_and_reconnect(mock_gateway, ConnectionResetError())
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "error",
+    [
+        TimeoutError(errno.ETIMEDOUT, "Operation timed out"),
+        OSError(errno.EHOSTUNREACH, "No route to host"),
+        ConnectionAbortedError(),
+        BrokenPipeError(),
+    ],
+)
+async def test_dynalite_read_error_reconnects(mock_gateway, error):
+    """Test that any socket error while reading leads to a reconnect."""
+    await _break_connection_and_reconnect(mock_gateway, error)

@@ -83,8 +83,8 @@ class Dynalite:
                 if len(data) > 0:
                     self.receive(data)
                     continue
-            except ConnectionResetError:
-                pass
+            except OSError as err:
+                LOGGER.debug("Error reading from Dynet (%s)", err)
             # we got disconnected or EOF
             if self._writer:
                 self._writer.close()
