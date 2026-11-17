@@ -149,16 +149,14 @@ class DynaliteDevices:
             if area not in self._area:
                 self._area[area] = old_area[area]
         self._default_presets = configurator.default_presets
-        # now register the channels and presets and ask for initial status if needed
+        # now register the channels and presets
         for area in self._area:
-            if self._active in [ACTIVE_INIT, ACTIVE_ON]:
-                self.request_area_preset(area, self._area[area][CONF_QUERY_CHANNEL])
             for channel in self._area[area][CONF_CHANNEL]:
                 self.create_channel_if_new(area, channel)
-                if self._active in [ACTIVE_INIT, ACTIVE_ON]:
-                    self.request_channel_level(area, channel)
             for preset in self._area[area][CONF_PRESET]:
                 self.create_preset_if_new(area, preset)
+        # and ask for initial status if needed
+        self.request_area_states()
         # register the rooms (switches on presets 1/4)
         # all the devices should be created for channels and presets
         self.register_rooms()
@@ -169,6 +167,15 @@ class DynaliteDevices:
             self._new_device_func(self._waiting_devices)
             self._waiting_devices = []
         self._configured = True
+
+    def request_area_states(self) -> None:
+        """Ask for the preset and channel levels of every area, if active."""
+        if self._active not in [ACTIVE_INIT, ACTIVE_ON]:
+            return
+        for area in self._area:
+            self.request_area_preset(area, self._area[area][CONF_QUERY_CHANNEL])
+            for channel in self._area[area][CONF_CHANNEL]:
+                self.request_channel_level(area, channel)
 
     def register_rooms(self) -> None:
         """Register the room switches from two normal presets each."""
