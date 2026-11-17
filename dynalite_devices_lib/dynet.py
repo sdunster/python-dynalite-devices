@@ -28,10 +28,10 @@ class DynetPacket:
 
     def __init__(
         self,
-        msg: List[int] = None,
+        msg: Optional[List[int]] = None,
         area: int = -1,
         command: int = -1,
-        data: List[int] = None,
+        data: Optional[List[int]] = None,
     ) -> None:
         """Initialize the packet."""
         # Either msg is defined or area/command/data, but not both

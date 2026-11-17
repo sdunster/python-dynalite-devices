@@ -165,7 +165,7 @@ class DynaliteDevices:
         # register the time covers
         self.register_time_covers()
         # callback for all devices
-        if self._new_device_func and self._waiting_devices:
+        if self._waiting_devices:
             self._new_device_func(self._waiting_devices)
             self._waiting_devices = []
         self._configured = True
