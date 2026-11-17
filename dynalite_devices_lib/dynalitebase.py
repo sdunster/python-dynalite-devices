@@ -19,6 +19,16 @@ class DynaliteBaseDevice(ABC):
         self._hidden = hidden
 
     @property
+    @abstractmethod
+    def category(self) -> str:
+        """Return the platform of the device, such as "light" or "switch"."""
+
+    @property
+    @abstractmethod
+    def unique_id(self) -> str:
+        """Return the ID of this device."""
+
+    @property
     def area_name(self) -> str:
         """Return the name of the area."""
         return self._bridge.get_area_name(self._area)
