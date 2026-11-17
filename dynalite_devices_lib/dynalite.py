@@ -11,7 +11,7 @@ Manage a Dynalite connection.
 import asyncio
 import socket
 import time
-from typing import Awaitable, Callable, List, Optional
+from typing import Awaitable, Callable, List, Optional, Tuple
 
 from .const import (
     CONF_ACTION,
@@ -32,6 +32,7 @@ from .const import (
     KEEPALIVE_INTERVAL,
     LOGGER,
     MESSAGE_DELAY,
+    QUEUED_PACKET_TIMEOUT,
 )
 from .dynet import DynetPacket, PacketError
 from .event import DynetEvent
@@ -47,7 +48,8 @@ class Dynalite:
         self._loop: Optional[asyncio.AbstractEventLoop] = None
         self._broadcast_func = broadcast_func
         self._in_buffer: List[int] = []
-        self._out_buffer: List[DynetPacket] = []
+        # Packets waiting to be sent, with the monotonic time they were queued
+        self._out_buffer: List[Tuple[DynetPacket, float]] = []
         self._last_sent = 0.0
         self._message_delay = MESSAGE_DELAY  # public for testing
         self._reader: Optional[asyncio.StreamReader] = None
@@ -139,6 +141,7 @@ class Dynalite:
                     return  # stop loop
                 # Don't overload the network
                 await asyncio.sleep(CONNECTION_RETRY_DELAY)
+            self.drop_stale_packets()
             self.broadcast(DynetEvent(event_type=EVENT_CONNECTED))
 
     def broadcast(self, event: DynetEvent) -> None:
@@ -266,10 +269,29 @@ class Dynalite:
             assert self._loop
             self._loop.call_soon(self.receive)
 
+    def drop_stale_packets(self) -> None:
+        """Drop packets that were queued too long ago to still be wanted.
+
+        Commands queued while the gateway was unreachable would otherwise all
+        be sent on reconnect, however late. Lights changing, or a lock or gate
+        operating, minutes after someone asked is worse than not at all.
+        """
+        cutoff = time.monotonic() - QUEUED_PACKET_TIMEOUT
+        fresh = [item for item in self._out_buffer if item[1] >= cutoff]
+        dropped = len(self._out_buffer) - len(fresh)
+        if dropped:
+            LOGGER.warning(
+                "Dropped %d Dynet packet(s) queued more than %s seconds ago "
+                "while disconnected",
+                dropped,
+                QUEUED_PACKET_TIMEOUT,
+            )
+        self._out_buffer = fresh
+
     def write(self, new_packet: Optional[DynetPacket] = None) -> None:
         """Write a packet or trigger write loop."""
         if new_packet is not None:
-            self._out_buffer.append(new_packet)
+            self._out_buffer.append((new_packet, time.monotonic()))
         if self._writer is None:
             LOGGER.debug("write before transport is ready. queuing")
             return
@@ -285,7 +307,7 @@ class Dynalite:
                 return
         if len(self._out_buffer) == 0:
             return
-        packet = self._out_buffer[0]
+        packet = self._out_buffer[0][0]
         msg = packet.msg
         self._writer.write(msg)
         LOGGER.debug("Dynet Sent: %s", [int(byte) for byte in msg])

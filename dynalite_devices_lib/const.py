@@ -90,4 +90,5 @@ CONNECTION_TIMEOUT = 10  # seconds to wait for the gateway to accept
 KEEPALIVE_IDLE = 30  # seconds of silence before TCP keepalive probes start
 KEEPALIVE_INTERVAL = 10  # seconds between keepalive probes
 KEEPALIVE_COUNT = 3  # unanswered probes before the connection is dropped
+QUEUED_PACKET_TIMEOUT = 10  # seconds a queued packet may wait out a disconnect
 MESSAGE_DELAY = 0.2  # seconds between sending

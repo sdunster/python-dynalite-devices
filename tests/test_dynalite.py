@@ -459,3 +459,28 @@ async def test_dynalite_keepalive_unsupported(mock_gateway):
     ):
         assert await mock_gateway.async_setup_dyn_dev()
     await mock_gateway.check_single_update(None)
+
+
+@pytest.mark.asyncio
+async def test_dynalite_drops_stale_packets_on_reconnect(mock_gateway, caplog):
+    """Test that packets queued long before a reconnect are not sent."""
+    mock_gateway.configure_dyn_dev({}, 0)
+    assert await mock_gateway.async_setup_dyn_dev()
+    await mock_gateway.check_single_update(None)
+    dynalite = mock_gateway.dyn_dev._dynalite
+    stale_packet = DynetPacket.select_area_preset_packet(1, 1, 0)
+    fresh_packet = DynetPacket.select_area_preset_packet(2, 1, 0)
+    with patch("dynalite_devices_lib.dynalite.CONNECTION_RETRY_DELAY", 0.1), patch(
+        "dynalite_devices_lib.dynalite.QUEUED_PACKET_TIMEOUT", 0.2
+    ):
+        await mock_gateway.shutdown()
+        await asyncio.sleep(0.05)
+        await mock_gateway.check_single_update(None)
+        dynalite.write(stale_packet)
+        await asyncio.sleep(0.3)
+        dynalite.write(fresh_packet)
+        await mock_gateway.async_setup_server()
+        await asyncio.sleep(0.2)
+        await mock_gateway.check_single_update(None)
+    await mock_gateway.check_single_write(fresh_packet)
+    assert "Dropped 1 Dynet packet(s)" in caplog.text
