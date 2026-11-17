@@ -107,6 +107,7 @@ class DynaliteDevices:
         self._notification_func = notification_func
         self._configured = False
         self.connected = False  # public
+        self._was_disconnected = False
         self._added_presets: Dict[int, Any] = {}
         self._added_channels: Dict[int, Any] = {}
         self._added_room_switches: Dict[int, Any] = {}
@@ -125,6 +126,7 @@ class DynaliteDevices:
         self._loop = asyncio.get_running_loop()
         # Run the dynalite object. Assumes self.configure() has been called
         self._resetting = False
+        self._was_disconnected = False
         self.connected = await self._dynalite.connect(self._host, self._port)
         return self.connected
 
@@ -259,9 +261,14 @@ class DynaliteDevices:
             LOGGER.debug("Received CONNECTED message")
             self.connected = True
             self.update_device()
+            if self._was_disconnected:
+                # Things may have changed while we couldn't hear the bus
+                self._was_disconnected = False
+                self.request_area_states()
         elif event.event_type == EVENT_DISCONNECTED:
             LOGGER.debug("Received DISCONNECTED message")
             self.connected = False
+            self._was_disconnected = True
             self.update_device()
         elif event.event_type == EVENT_PRESET:
             LOGGER.debug("Received PRESET message")

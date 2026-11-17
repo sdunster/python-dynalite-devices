@@ -484,3 +484,32 @@ async def test_dynalite_drops_stale_packets_on_reconnect(mock_gateway, caplog):
         await mock_gateway.check_single_update(None)
     await mock_gateway.check_single_write(fresh_packet)
     assert "Dropped 1 Dynet packet(s)" in caplog.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("active", [False, dyn_const.ACTIVE_INIT, True])
+async def test_dynalite_reconnect_requests_state(mock_gateway, active):
+    """Test that states are queried again after a reconnect, if active."""
+    mock_gateway.configure_dyn_dev(
+        {
+            dyn_const.CONF_ACTIVE: active,
+            dyn_const.CONF_AREA: {"1": {dyn_const.CONF_CHANNEL: {"1": {}}}},
+            dyn_const.CONF_PRESET: {},
+        },
+    )
+    assert await mock_gateway.async_setup_dyn_dev()
+    await mock_gateway.check_single_update(None)
+    queries = [
+        DynetPacket.request_area_preset_packet(1, 1),
+        DynetPacket.request_channel_level_packet(1, 1),
+    ]
+    expected = queries if active is not False else []
+    await mock_gateway.check_writes(expected)
+    with patch("dynalite_devices_lib.dynalite.CONNECTION_RETRY_DELAY", 0.1):
+        await mock_gateway.shutdown()
+        await asyncio.sleep(0.05)
+        await mock_gateway.check_single_update(None)
+        await mock_gateway.async_setup_server()
+        await asyncio.sleep(0.2)
+        await mock_gateway.check_single_update(None)
+    await mock_gateway.check_writes(expected)
