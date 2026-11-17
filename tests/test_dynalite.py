@@ -2,7 +2,8 @@
 
 import asyncio
 import errno
-from unittest.mock import patch
+import socket
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -414,3 +415,47 @@ async def test_dynalite_disconnect_closes_socket(mock_gateway):
 async def test_dynalite_read_error_reconnects(mock_gateway, error):
     """Test that any socket error while reading leads to a reconnect."""
     await _break_connection_and_reconnect(mock_gateway, error)
+
+
+@pytest.mark.asyncio
+async def test_dynalite_keepalive(mock_gateway):
+    """Test that TCP keepalive is turned on for the gateway connection."""
+    mock_gateway.configure_dyn_dev({}, 0)
+    assert await mock_gateway.async_setup_dyn_dev()
+    await mock_gateway.check_single_update(None)
+    sock = mock_gateway.dyn_dev._dynalite._writer.get_extra_info("socket")
+    assert sock.getsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE)
+    idle_option = getattr(socket, "TCP_KEEPIDLE", getattr(socket, "TCP_KEEPALIVE", None))
+    if idle_option is not None:
+        idle = sock.getsockopt(socket.IPPROTO_TCP, idle_option)
+        assert idle == dyn_const.KEEPALIVE_IDLE
+    if hasattr(socket, "TCP_KEEPINTVL"):
+        interval = sock.getsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPINTVL)
+        assert interval == dyn_const.KEEPALIVE_INTERVAL
+    if hasattr(socket, "TCP_KEEPCNT"):
+        count = sock.getsockopt(socket.IPPROTO_TCP, socket.TCP_KEEPCNT)
+        assert count == dyn_const.KEEPALIVE_COUNT
+
+
+@pytest.mark.asyncio
+async def test_dynalite_keepalive_unsupported(mock_gateway):
+    """Test that connecting still works when keepalive options are refused."""
+    mock_gateway.configure_dyn_dev({}, 0)
+    real_open_connection = asyncio.open_connection
+
+    async def open_connection_refusing_options(*args, **kwargs):
+        reader, writer = await real_open_connection(*args, **kwargs)
+        sock = writer.get_extra_info("socket")
+        refusing_socket = Mock(wraps=sock)
+        refusing_socket.setsockopt.side_effect = OSError(
+            errno.ENOPROTOOPT, "Protocol not available"
+        )
+        writer.get_extra_info = Mock(return_value=refusing_socket)
+        return reader, writer
+
+    with patch(
+        "dynalite_devices_lib.dynalite.asyncio.open_connection",
+        open_connection_refusing_options,
+    ):
+        assert await mock_gateway.async_setup_dyn_dev()
+    await mock_gateway.check_single_update(None)

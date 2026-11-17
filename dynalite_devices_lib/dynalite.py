@@ -9,6 +9,7 @@ Manage a Dynalite connection.
 """
 
 import asyncio
+import socket
 import time
 from typing import Awaitable, Callable, List, Optional
 
@@ -26,6 +27,9 @@ from .const import (
     EVENT_DISCONNECTED,
     EVENT_PACKET,
     EVENT_PRESET,
+    KEEPALIVE_COUNT,
+    KEEPALIVE_IDLE,
+    KEEPALIVE_INTERVAL,
     LOGGER,
     MESSAGE_DELAY,
 )
@@ -57,10 +61,44 @@ class Dynalite:
             self._reader, self._writer = await asyncio.wait_for(
                 asyncio.open_connection(host, port), CONNECTION_TIMEOUT
             )
+            self._enable_keepalive()
             return True
         except (ValueError, OSError, asyncio.TimeoutError) as err:
             LOGGER.warning("Could not connect to Dynet (%s)", err)
             return False
+
+    def _enable_keepalive(self) -> None:
+        """Turn on TCP keepalive so a silently dead connection gets noticed.
+
+        Without it, a gateway that loses power or drops off the network
+        leaves the read waiting forever on a quiet bus. Once the probes go
+        unanswered the read fails and the reader loop reconnects.
+        """
+        assert self._writer
+        sock = self._writer.get_extra_info("socket")
+        if sock is None:
+            return
+        # TCP_KEEPIDLE is TCP_KEEPALIVE on macOS
+        idle_option = getattr(
+            socket, "TCP_KEEPIDLE", getattr(socket, "TCP_KEEPALIVE", None)
+        )
+        options = [
+            (socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1),
+            (socket.IPPROTO_TCP, idle_option, KEEPALIVE_IDLE),
+            (
+                socket.IPPROTO_TCP,
+                getattr(socket, "TCP_KEEPINTVL", None),
+                KEEPALIVE_INTERVAL,
+            ),
+            (socket.IPPROTO_TCP, getattr(socket, "TCP_KEEPCNT", None), KEEPALIVE_COUNT),
+        ]
+        for level, option, value in options:
+            if option is None:
+                continue
+            try:
+                sock.setsockopt(level, option, value)
+            except OSError as err:
+                LOGGER.debug("Could not set socket option %s (%s)", option, err)
 
     async def connect(self, host: str, port: int) -> bool:
         """Connect to Dynet."""
