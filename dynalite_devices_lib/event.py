@@ -1,4 +1,5 @@
 """Class to represent an event on the Dynet network."""
+
 import json
 from typing import Any, Dict, Optional
 

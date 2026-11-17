@@ -1,4 +1,5 @@
 """Support for the Dynalite devices."""
+
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Callable, Dict, List
 

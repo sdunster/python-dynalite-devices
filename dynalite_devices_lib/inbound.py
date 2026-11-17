@@ -85,7 +85,8 @@ class DynetInbound:
         """Report the current preset of an area."""
         preset = packet.data[0] + 1
         return DynetEvent(
-            event_type=EVENT_PRESET, data={CONF_AREA: packet.area, CONF_PRESET: preset},
+            event_type=EVENT_PRESET,
+            data={CONF_AREA: packet.area, CONF_PRESET: preset},
         )
 
     @staticmethod

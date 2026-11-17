@@ -1,4 +1,5 @@
 """Tests for Dynalite switches."""
+
 import asyncio
 
 import pytest

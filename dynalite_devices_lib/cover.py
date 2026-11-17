@@ -1,4 +1,5 @@
 """Support for the Dynalite channels as covers."""
+
 import asyncio
 from typing import TYPE_CHECKING
 

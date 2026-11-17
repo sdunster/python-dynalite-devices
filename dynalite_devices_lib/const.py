@@ -1,4 +1,5 @@
 """Constants for the Dynalite component."""
+
 import logging
 from typing import Dict, Union
 

@@ -37,3 +37,13 @@ include = ["dynalite_devices_lib*"]
 testpaths = ["tests"]
 norecursedirs = [".git", "testing_config"]
 addopts = "--cov=dynalite_devices_lib --cov-report html --cov-branch -W ignore::DeprecationWarning --log-level=debug"
+
+[tool.ruff.lint]
+select = ["B", "E", "F", "I", "W"]
+# Line length is left to the formatter.
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+force-sort-within-sections = true
+known-first-party = ["dynalite_devices_lib", "tests"]
