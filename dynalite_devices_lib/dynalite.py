@@ -142,6 +142,14 @@ class Dynalite:
                 # Don't overload the network
                 await asyncio.sleep(CONNECTION_RETRY_DELAY)
             self.drop_stale_packets()
+            # A new connection starts a new stream, so a partial packet left
+            # over from the old one can never be completed
+            if self._in_buffer:
+                LOGGER.debug(
+                    "Discarding partial packet from the old connection: %s",
+                    self._in_buffer,
+                )
+                self._in_buffer = []
             self.broadcast(DynetEvent(event_type=EVENT_CONNECTED))
 
     def broadcast(self, event: DynetEvent) -> None:

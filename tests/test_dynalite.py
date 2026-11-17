@@ -11,7 +11,7 @@ import dynalite_devices_lib.const as dyn_const
 from dynalite_devices_lib.dynet import DynetPacket
 from dynalite_devices_lib.opcodes import SyncType
 
-from .common import packet_notification
+from .common import packet_notification, preset_notification
 
 
 @pytest.mark.asyncio
@@ -513,3 +513,34 @@ async def test_dynalite_reconnect_requests_state(mock_gateway, active):
         await asyncio.sleep(0.2)
         await mock_gateway.check_single_update(None)
     await mock_gateway.check_writes(expected)
+
+
+@pytest.mark.asyncio
+async def test_dynalite_reconnect_discards_partial_packet(mock_gateway):
+    """Test that bytes left over from the old connection don't corrupt the new one."""
+    [_, _, device_pres] = mock_gateway.configure_dyn_dev(
+        {
+            dyn_const.CONF_ACTIVE: False,
+            dyn_const.CONF_AREA: {"1": {dyn_const.CONF_CHANNEL: {"1": {}, "2": {}}}},
+            dyn_const.CONF_PRESET: {"1": {}},
+        },
+        3,
+    )
+    assert await mock_gateway.async_setup_dyn_dev()
+    await mock_gateway.check_single_update(None)
+    with patch("dynalite_devices_lib.dynalite.CONNECTION_RETRY_DELAY", 0.1):
+        # The connection drops partway through a device (0x5c) frame
+        await mock_gateway.receive_message(bytes([SyncType.DEVICE.value, 0x01, 0x02]))
+        await mock_gateway.shutdown()
+        await asyncio.sleep(0.05)
+        await mock_gateway.check_single_update(None)
+        await mock_gateway.async_setup_server()
+        await asyncio.sleep(0.2)
+        await mock_gateway.check_single_update(None)
+    # The first packet on the new connection is decoded as sent
+    packet_to_send = DynetPacket.report_area_preset_packet(1, 1)
+    await mock_gateway.receive(packet_to_send)
+    await mock_gateway.check_single_update(device_pres)
+    await mock_gateway.check_notifications(
+        [packet_notification(packet_to_send.raw_msg), preset_notification(1, 1)]
+    )
