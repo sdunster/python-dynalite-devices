@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dynalite-devices"
+dynamic = ["version"]
+description = "An unofficial Dynalite DyNET interface creating devices."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE.md"]
+authors = [{ name = "Ziv" }]
+requires-python = ">=3.13"
+keywords = ["homeautomation", "lighting", "philips", "dynalite"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Home Automation",
+]
+dependencies = []
+
+[project.urls]
+"Bug Reports" = "https://github.com/ziv1234/python-dynalite-devices/issues"
+Source = "https://github.com/ziv1234/python-dynalite-devices"
+
+[tool.setuptools.dynamic]
+version = { attr = "dynalite_devices_lib.__version__.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["dynalite_devices_lib*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+norecursedirs = [".git", "testing_config"]
+addopts = "--cov=dynalite_devices_lib --cov-report html --cov-branch -W ignore::DeprecationWarning --log-level=debug"
