@@ -1,4 +1,5 @@
 """Support for the Dynalite devices."""
+
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Callable, Dict, List
 
@@ -17,6 +18,16 @@ class DynaliteBaseDevice(ABC):
         self._bridge = bridge
         self._listeners: List[Callable[[DynaliteBaseDevice, bool], None]] = []
         self._hidden = hidden
+
+    @property
+    @abstractmethod
+    def category(self) -> str:
+        """Return the platform of the device, such as "light" or "switch"."""
+
+    @property
+    @abstractmethod
+    def unique_id(self) -> str:
+        """Return the ID of this device."""
 
     @property
     def area_name(self) -> str:

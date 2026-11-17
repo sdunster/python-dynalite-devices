@@ -1,4 +1,5 @@
 """Tests for Dynalite lights."""
+
 import pytest
 
 import dynalite_devices_lib.const as dyn_const

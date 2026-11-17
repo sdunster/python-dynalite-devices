@@ -7,7 +7,8 @@ from dynalite_devices_lib.dynalite_devices import DynaliteNotification
 def packet_notification(packet):
     """Create a notification for a Dynalite packet."""
     return DynaliteNotification(
-        dyn_const.NOTIFICATION_PACKET, {dyn_const.NOTIFICATION_PACKET: packet},
+        dyn_const.NOTIFICATION_PACKET,
+        {dyn_const.NOTIFICATION_PACKET: packet},
     )
 
 
