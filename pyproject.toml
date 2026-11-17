@@ -36,7 +36,8 @@ include = ["dynalite_devices_lib*"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 norecursedirs = [".git", "testing_config"]
-addopts = "--cov=dynalite_devices_lib --cov-report html --cov-branch -W ignore::DeprecationWarning --log-level=debug"
+addopts = "--cov=dynalite_devices_lib --cov-report html --cov-branch --log-level=debug"
+asyncio_default_fixture_loop_scope = "function"
 
 [tool.ruff.lint]
 select = ["B", "E", "F", "I", "W"]
