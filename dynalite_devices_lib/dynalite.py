@@ -86,6 +86,8 @@ class Dynalite:
             except ConnectionResetError:
                 pass
             # we got disconnected or EOF
+            if self._writer:
+                self._writer.close()
             if self._resetting:
                 self._reader = None
                 return  # stop loop

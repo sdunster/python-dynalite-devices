@@ -360,3 +360,41 @@ async def test_dynalite_connect_timeout(mock_gateway):
         assert not await asyncio.wait_for(
             mock_gateway.async_setup_dyn_dev(), timeout=1
         )
+
+
+async def _break_connection_and_reconnect(mock_gateway, error):
+    """Make the next read fail with error and check that the library reconnects."""
+    [device] = mock_gateway.configure_dyn_dev(
+        {
+            dyn_const.CONF_ACTIVE: False,
+            dyn_const.CONF_AREA: {"1": {dyn_const.CONF_CHANNEL: {"1": {}}}},
+            dyn_const.CONF_PRESET: {},
+        },
+    )
+    assert await mock_gateway.async_setup_dyn_dev()
+    await mock_gateway.check_single_update(None)
+    assert device.available
+    dynalite = mock_gateway.dyn_dev._dynalite
+    old_writer = mock_gateway.writer
+    old_library_writer = dynalite._writer
+    with patch("dynalite_devices_lib.dynalite.CONNECTION_RETRY_DELAY", 0.1), patch.object(
+        dynalite._reader, "read", side_effect=error
+    ):
+        # One byte wakes the pending read, so the next read raises
+        await mock_gateway.receive_message(bytes([SyncType.LOGICAL.value]))
+        await asyncio.sleep(0.05)
+        await mock_gateway.check_single_update(None)
+        assert not device.available
+        await asyncio.sleep(0.2)
+        await mock_gateway.check_single_update(None)
+        assert device.available
+    # The library closed its old socket and the gateway accepted a new one
+    assert old_library_writer.is_closing()
+    assert mock_gateway.writer is not None
+    assert mock_gateway.writer is not old_writer
+
+
+@pytest.mark.asyncio
+async def test_dynalite_disconnect_closes_socket(mock_gateway):
+    """Test that the old socket is closed before reconnecting."""
+    await _break_connection_and_reconnect(mock_gateway, ConnectionResetError())
