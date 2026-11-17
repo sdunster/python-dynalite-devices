@@ -344,3 +344,19 @@ async def test_dynalite_reset_while_connected(mock_gateway):
     await asyncio.sleep(0.05)
     # The gateway saw the connection close
     assert mock_gateway.writer is None
+
+
+@pytest.mark.asyncio
+async def test_dynalite_connect_timeout(mock_gateway):
+    """Test that connecting gives up when the gateway never answers."""
+    mock_gateway.configure_dyn_dev({}, 0)
+
+    async def never_connects(*args, **kwargs):
+        await asyncio.sleep(10)
+
+    with patch("dynalite_devices_lib.dynalite.CONNECTION_TIMEOUT", 0.05), patch(
+        "dynalite_devices_lib.dynalite.asyncio.open_connection", never_connects
+    ):
+        assert not await asyncio.wait_for(
+            mock_gateway.async_setup_dyn_dev(), timeout=1
+        )

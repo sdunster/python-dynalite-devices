@@ -20,6 +20,7 @@ from .const import (
     CONF_PRESET,
     CONF_TRGT_LEVEL,
     CONNECTION_RETRY_DELAY,
+    CONNECTION_TIMEOUT,
     EVENT_CHANNEL,
     EVENT_CONNECTED,
     EVENT_DISCONNECTED,
@@ -53,7 +54,9 @@ class Dynalite:
     async def connect_internal(self, host: str, port: int) -> bool:
         """Create the actual connection to Dynet."""
         try:
-            self._reader, self._writer = await asyncio.open_connection(host, port)
+            self._reader, self._writer = await asyncio.wait_for(
+                asyncio.open_connection(host, port), CONNECTION_TIMEOUT
+            )
             return True
         except (ValueError, OSError, asyncio.TimeoutError) as err:
             LOGGER.warning("Could not connect to Dynet (%s)", err)

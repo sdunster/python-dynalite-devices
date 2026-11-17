@@ -86,4 +86,5 @@ NOTIFICATION_PACKET = "PACKET"
 NOTIFICATION_PRESET = "PRESET"
 
 CONNECTION_RETRY_DELAY = 1  # seconds to reconnect
+CONNECTION_TIMEOUT = 10  # seconds to wait for the gateway to accept
 MESSAGE_DELAY = 0.2  # seconds between sending
