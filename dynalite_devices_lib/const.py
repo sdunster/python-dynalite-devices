@@ -41,6 +41,7 @@ CONF_QUERY_CHANNEL = "query_channel"
 CONF_ROOM = "room"
 CONF_ROOM_OFF = "room_off"
 CONF_ROOM_ON = "room_on"
+CONF_SELECT = "select"
 CONF_STOP_PRESET = "stop"
 CONF_TEMPLATE = "template"
 CONF_TILT_TIME = "tilt"
@@ -61,6 +62,7 @@ DEFAULT_TEMPLATES: Dict[str, Dict[str, Union[str, int]]] = {
     CONF_ROOM: {CONF_ROOM_ON: "1", CONF_ROOM_OFF: "4"},
     CONF_TRIGGER: {CONF_TRIGGER: "1"},
     CONF_HIDDEN_ENTITY: {},
+    CONF_SELECT: {},
     CONF_TIME_COVER: {
         CONF_CHANNEL_COVER: "0",
         CONF_DEVICE_CLASS: DEFAULT_COVER_CLASS,

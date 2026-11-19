@@ -77,6 +77,11 @@ class DynalitePresetSwitchDevice(DynaliteBaseDevice):
         return self._bridge.available(CONF_PRESET, self._area, self._preset)
 
     @property
+    def preset(self) -> int:
+        """Return the preset number."""
+        return self._preset
+
+    @property
     def name(self) -> str:
         """Return the name of the device."""
         return self._bridge.get_preset_name(self._area, self._preset)

@@ -31,6 +31,7 @@ from .const import (
     CONF_ROOM,
     CONF_ROOM_OFF,
     CONF_ROOM_ON,
+    CONF_SELECT,
     CONF_STOP_PRESET,
     CONF_TEMPLATE,
     CONF_TILT_TIME,
@@ -48,6 +49,7 @@ PRESET_CONFS = {
     CONF_ROOM: [CONF_ROOM_ON, CONF_ROOM_OFF],
     CONF_TRIGGER: [CONF_TRIGGER],
     CONF_TIME_COVER: [CONF_OPEN_PRESET, CONF_CLOSE_PRESET, CONF_STOP_PRESET],
+    CONF_SELECT: [],
 }
 
 TIME_COVER_VALUE_CONFS = [CONF_DEVICE_CLASS, CONF_DURATION, CONF_TILT_TIME]
@@ -211,10 +213,19 @@ class DynaliteConfig:
                     channel_cover, {}, result[CONF_FADE], True
                 )
         # Default presets
-        if not area_config.get(CONF_NO_DEFAULT, False) and not template:
+        if not area_config.get(CONF_NO_DEFAULT, False) and template in (
+            None,
+            CONF_SELECT,
+        ):
             for preset in default_presets:
                 if preset not in area_presets:
                     area_presets[preset] = default_presets[preset]
+        # A select area offers its presets as options, not as switches
+        if template == CONF_SELECT:
+            area_presets = {
+                preset: {**preset_config, CONF_HIDDEN_ENTITY: True}
+                for preset, preset_config in area_presets.items()
+            }
         result[CONF_PRESET] = area_presets
         result[CONF_CHANNEL] = area_channels
         return result

@@ -32,6 +32,7 @@ from .const import (
     CONF_ROOM,
     CONF_ROOM_OFF,
     CONF_ROOM_ON,
+    CONF_SELECT,
     CONF_STOP_PRESET,
     CONF_TEMPLATE,
     CONF_TILT_TIME,
@@ -53,6 +54,7 @@ from .dynalite import Dynalite
 from .dynalitebase import DynaliteBaseDevice
 from .event import DynetEvent
 from .light import DynaliteChannelLightDevice
+from .select import DynaliteAreaPresetSelectDevice
 from .switch import (
     DynaliteChannelSwitchDevice,
     DynaliteDualPresetSwitchDevice,
@@ -111,6 +113,7 @@ class DynaliteDevices:
         self._added_channels: Dict[int, Any] = {}
         self._added_room_switches: Dict[int, Any] = {}
         self._added_time_covers: Dict[int, Any] = {}
+        self._added_preset_selects: Dict[int, DynaliteAreaPresetSelectDevice] = {}
         self._waiting_devices: List[DynaliteBaseDevice] = []
         self._timer_active = False
         self._timer_callbacks: Set[Callable[[], None]] = set()
@@ -164,6 +167,8 @@ class DynaliteDevices:
         self.register_rooms()
         # register the time covers
         self.register_time_covers()
+        # register the selects of all the presets in an area
+        self.register_preset_selects()
         # callback for all devices
         if self._new_device_func and self._waiting_devices:
             self._new_device_func(self._waiting_devices)
@@ -216,6 +221,30 @@ class DynaliteDevices:
                     ]
                     new_device.set_device(4, channel_device)
                 self.register_new_device(new_device)
+
+    def register_preset_selects(self) -> None:
+        """Register a select for each select-template area with presets.
+
+        Adds any preset that a select doesn't have yet to its options.
+        """
+        for area, area_config in self._area.items():
+            if area_config.get(CONF_TEMPLATE, "") != CONF_SELECT:
+                continue
+            presets = self._added_presets.get(area, {})
+            if not presets:
+                continue
+            select = self._added_preset_selects.get(area)
+            is_new = select is None
+            if select is None:
+                select = DynaliteAreaPresetSelectDevice(area, self, False)
+                self._added_preset_selects[area] = select
+            new_presets = [p for p in sorted(presets) if not select.has_preset(p)]
+            for preset in new_presets:
+                select.add_preset(preset, presets[preset])
+            if is_new:
+                self.register_new_device(select)
+            elif new_presets and self._configured:
+                self.update_device(select)
 
     def register_new_device(self, device: DynaliteBaseDevice) -> None:
         """Register a new device and group all the ones prior to CONFIGURED event together."""
@@ -319,6 +348,8 @@ class DynaliteDevices:
         LOGGER.debug(
             "Creating Dynalite preset area=%s preset=%s hidden=%s", area, preset, hidden
         )
+        if self._configured:  # during configure, it registers them at the end
+            self.register_preset_selects()
 
     def handle_preset_selection(self, event: DynetEvent) -> None:
         """Change the selected preset."""
@@ -327,13 +358,16 @@ class DynaliteDevices:
         area = event.data[CONF_AREA]
         preset = event.data[CONF_PRESET]
         self.create_preset_if_new(area, preset)
-        # Update all the preset devices
+        # Update all the preset devices, the selected one first so that the
+        # area's preset select changes once, not to "unknown" in between
+        selected = self._added_presets[area][preset]
+        selected.set_level(1)
+        self.update_device(selected)
         for cur_preset_in_area in self._added_presets[area]:
-            device = self._added_presets[area][cur_preset_in_area]
             if cur_preset_in_area == preset:
-                device.set_level(1)
-            else:
-                device.set_level(0)
+                continue
+            device = self._added_presets[area][cur_preset_in_area]
+            device.set_level(0)
             self.update_device(device)
         # If active is set to full, query all channels in the area
         if self._active == ACTIVE_ON:
@@ -497,6 +531,15 @@ class DynaliteDevices:
         if area_name == preset_name:
             return preset_name
         return f"{area_name} {preset_name}"
+
+    def get_preset_option(self, area: int, preset: int) -> str:
+        """Return the name of a preset without the area name, for a select."""
+        return (
+            self._area.get(area, {})
+            .get(CONF_PRESET, {})
+            .get(preset, {})
+            .get(CONF_NAME, f"Preset {preset}")
+        )
 
     def get_preset_fade(self, area: int, preset: int) -> float:
         """Return the fade of a preset."""
